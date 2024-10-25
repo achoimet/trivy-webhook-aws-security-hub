@@ -145,8 +145,8 @@ func getConfigAuditReportFindings(body []byte) ([]types.AwsSecurityFinding, erro
 
 		// Truncate description if too long
 		description := check.Description
-		if len(description) > 512 {
-			description = description[:512] + "..."
+		if len(description) > 1024 {
+			description = description[:1024] + "..."
 		}
 
 		findings = append(findings, types.AwsSecurityFinding{
@@ -266,7 +266,13 @@ func getVulnerabilityReportFindings(body []byte) ([]types.AwsSecurityFinding, er
 	Registry := vulnerabilityReport.Report.Registry.Server
 	Repository := vulnerabilityReport.Report.Artifact.Repository
 	Digest := vulnerabilityReport.Report.Artifact.Digest
-	FullImageName := fmt.Sprintf("%s/%s:%s", Registry, Repository, Digest)
+	Tag := vulnerabilityReport.Report.Artifact.Tag
+	// use tag if digest is empty
+	if Digest == "" {
+		Digest = Tag
+	}
+
+	FullImageName := fmt.Sprintf("%s/%s@%s", Registry, Repository, Digest)
 	ImageName := fmt.Sprintf("%s/%s", Registry, Repository)
 
 	// Prepare findings for AWS Security Hub BatchImportFindings API
@@ -279,10 +285,14 @@ func getVulnerabilityReportFindings(body []byte) ([]types.AwsSecurityFinding, er
 			severity = "INFORMATIONAL"
 		}
 
-		// Truncate description if too long
 		description := vulnerabilities.Description
-		if len(description) > 512 {
-			description = description[:512] + "..."
+		// check if description is empty, replace with title
+		if vulnerabilities.Description == "" {
+			description = vulnerabilities.Title
+		}
+		// Truncate description if too long
+		if len(description) > 1024 {
+			description = description[:1024] + "..."
 		}
 
 		findings = append(findings, types.AwsSecurityFinding{
