@@ -266,13 +266,13 @@ func getVulnerabilityReportFindings(body []byte) ([]types.AwsSecurityFinding, er
 	Registry := vulnerabilityReport.Report.Registry.Server
 	Repository := vulnerabilityReport.Report.Artifact.Repository
 	Digest := vulnerabilityReport.Report.Artifact.Digest
+	FullImageName := fmt.Sprintf("%s/%s@%s", Registry, Repository, Digest)
 	Tag := vulnerabilityReport.Report.Artifact.Tag
 	// use tag if digest is empty
 	if Digest == "" {
-		Digest = Tag
+		FullImageName = fmt.Sprintf("%s/%s:%s", Registry, Repository, Tag)
 	}
 
-	FullImageName := fmt.Sprintf("%s/%s@%s", Registry, Repository, Digest)
 	ImageName := fmt.Sprintf("%s/%s", Registry, Repository)
 
 	// Prepare findings for AWS Security Hub BatchImportFindings API
