@@ -146,7 +146,10 @@ func getConfigAuditReportFindings(body []byte) ([]types.AwsSecurityFinding, erro
 		// Truncate description if too long
 		description := check.Description
 		if len(description) > 512 {
-			description = description[:512] + "..."
+			description = description[:509] + "..."
+		}
+		if len(description) == 0 {
+			description = "no description"
 		}
 
 		findings = append(findings, types.AwsSecurityFinding{
@@ -282,7 +285,10 @@ func getVulnerabilityReportFindings(body []byte) ([]types.AwsSecurityFinding, er
 		// Truncate description if too long
 		description := vulnerabilities.Description
 		if len(description) > 512 {
-			description = description[:512] + "..."
+			description = description[:509] + "..."
+		}
+		if len(description) == 0 {
+			description = "no description"
 		}
 
 		findings = append(findings, types.AwsSecurityFinding{

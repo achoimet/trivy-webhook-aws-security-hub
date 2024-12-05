@@ -27,6 +27,9 @@ nameOverride: ""
 ## @description Override for the full name of the Helm release.
 fullnameOverride: ""
 
+env:
+  AWS_REGION: eu-central-1
+
 ## @param serviceAccount.annotations [object] Annotations for service account. Evaluated as a template. Only used if `create` is `true`.
 ## @param serviceAccount.create Specifies whether a ServiceAccount should be created.
 ## @param serviceAccount.automount Specifies whether the ServiceAccount should auto-mount API credentials.
