@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"k8s.io/utils/env"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
@@ -26,6 +28,10 @@ type webhook struct {
 
 // ProcessTrivyWebhook processes incoming vulnerability reports
 func ProcessTrivyWebhook(w http.ResponseWriter, r *http.Request) {
+	var enableConfigAudit bool
+	var enableInfraAssessment bool
+	var enableClusterCompliance bool
+	var enableVulnerability bool
 	var report webhook
 
 	// Read request body
@@ -54,32 +60,44 @@ func ProcessTrivyWebhook(w http.ResponseWriter, r *http.Request) {
 	var findings []types.AwsSecurityFinding
 	switch report.Kind {
 	case "ConfigAuditReport":
-		findings, err = getConfigAuditReportFindings(body)
-		if err != nil {
-			http.Error(w, "Error processing report", http.StatusInternalServerError)
-			log.Printf("Error processing report: %v", err)
-			return
+		enableConfigAudit, err = strconv.ParseBool(env.GetString("CONFIG_AUDIT_ENABLE", "false"))
+		if enableConfigAudit {
+			findings, err = getConfigAuditReportFindings(body)
+			if err != nil {
+				http.Error(w, "Error processing report", http.StatusInternalServerError)
+				log.Printf("Error processing report: %v", err)
+				return
+			}
 		}
 	case "InfraAssessmentReport":
-		findings, err = getInfraAssessmentReport(body)
-		if err != nil {
-			http.Error(w, "Error processing report", http.StatusInternalServerError)
-			log.Printf("Error processing report: %v", err)
-			return
+		enableInfraAssessment, err = strconv.ParseBool(env.GetString("INFRA_ASSESSMENT_ENABLE", "false"))
+		if enableInfraAssessment {
+			findings, err = getInfraAssessmentReport(body)
+			if err != nil {
+				http.Error(w, "Error processing report", http.StatusInternalServerError)
+				log.Printf("Error processing report: %v", err)
+				return
+			}
 		}
 	case "ClusterComplianceReport":
-		findings, err = getClusterComplianceReport(body)
-		if err != nil {
-			http.Error(w, "Error processing report", http.StatusInternalServerError)
-			log.Printf("Error processing report: %v", err)
-			return
+		enableClusterCompliance, err = strconv.ParseBool(env.GetString("CLUSTER_COMPLIANCE_ENABLE", "false"))
+		if enableClusterCompliance {
+			findings, err = getClusterComplianceReport(body)
+			if err != nil {
+				http.Error(w, "Error processing report", http.StatusInternalServerError)
+				log.Printf("Error processing report: %v", err)
+				return
+			}
 		}
 	case "VulnerabilityReport":
-		findings, err = getVulnerabilityReportFindings(body)
-		if err != nil {
-			http.Error(w, "Error processing report", http.StatusInternalServerError)
-			log.Printf("Error processing report: %v", err)
-			return
+		enableVulnerability, err = strconv.ParseBool(env.GetString("VULNERABILITY_ENABLE", "true"))
+		if enableVulnerability {
+			findings, err = getVulnerabilityReportFindings(body)
+			if err != nil {
+				http.Error(w, "Error processing report", http.StatusInternalServerError)
+				log.Printf("Error processing report: %v", err)
+				return
+			}
 		}
 	default: // Unknown report type
 		http.Error(w, "unknown report type", http.StatusBadRequest)
@@ -145,11 +163,8 @@ func getConfigAuditReportFindings(body []byte) ([]types.AwsSecurityFinding, erro
 
 		// Truncate description if too long
 		description := check.Description
-		if len(description) > 512 {
-			description = description[:509] + "..."
-		}
-		if len(description) == 0 {
-			description = "no description"
+		if len(description) > 1024 {
+			description = description[:1021] + "..."
 		}
 
 		findings = append(findings, types.AwsSecurityFinding{
@@ -269,7 +284,13 @@ func getVulnerabilityReportFindings(body []byte) ([]types.AwsSecurityFinding, er
 	Registry := vulnerabilityReport.Report.Registry.Server
 	Repository := vulnerabilityReport.Report.Artifact.Repository
 	Digest := vulnerabilityReport.Report.Artifact.Digest
-	FullImageName := fmt.Sprintf("%s/%s:%s", Registry, Repository, Digest)
+	FullImageName := fmt.Sprintf("%s/%s@%s", Registry, Repository, Digest)
+	Tag := vulnerabilityReport.Report.Artifact.Tag
+	// use tag if digest is empty
+	if Digest == "" {
+		FullImageName = fmt.Sprintf("%s/%s:%s", Registry, Repository, Tag)
+	}
+
 	ImageName := fmt.Sprintf("%s/%s", Registry, Repository)
 
 	// Prepare findings for AWS Security Hub BatchImportFindings API
@@ -282,13 +303,14 @@ func getVulnerabilityReportFindings(body []byte) ([]types.AwsSecurityFinding, er
 			severity = "INFORMATIONAL"
 		}
 
-		// Truncate description if too long
 		description := vulnerabilities.Description
-		if len(description) > 512 {
-			description = description[:509] + "..."
+		// check if description is empty, replace with title
+		if vulnerabilities.Description == "" {
+			description = vulnerabilities.Title
 		}
-		if len(description) == 0 {
-			description = "no description"
+		// Truncate description if too long
+		if len(description) > 1024 {
+			description = description[:1021] + "..."
 		}
 
 		findings = append(findings, types.AwsSecurityFinding{
@@ -301,7 +323,7 @@ func getVulnerabilityReportFindings(body []byte) ([]types.AwsSecurityFinding, er
 			CreatedAt:     aws.String(time.Now().Format(time.RFC3339)),
 			UpdatedAt:     aws.String(time.Now().Format(time.RFC3339)),
 			Severity:      &types.Severity{Label: types.SeverityLabel(severity)},
-			Title:         aws.String(fmt.Sprintf("Trivy found a vulnerability in %s/%s related to %s", ImageName, Container, vulnerabilities.VulnerabilityID)),
+			Title:         aws.String(fmt.Sprintf("%s/%s:%s %s", ImageName, Container, Tag, vulnerabilities.VulnerabilityID)),
 			Description:   aws.String(description),
 			Remediation: &types.Remediation{
 				Recommendation: &types.Recommendation{
