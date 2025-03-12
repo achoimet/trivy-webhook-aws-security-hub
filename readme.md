@@ -22,6 +22,7 @@ This application processes vulnerability reports from Trivy, a vulnerability sca
 - **AWS Account**: This application uses AWS Security Hub to store and manage security findings, so you must have an active AWS account and the necessary permissions.
 - **Trivy**: You must set up Trivy to scan container images and send reports to the webhook endpoint.
 - **Go**: The application is written in Go, so you'll need Go installed to build and run it.
+- **Security Hub Integration**: You must accept findings from `Aqua Security: Aqua Security` in AWS Security Hub. This allows the application to import findings into Security Hub.
   
 ## Setup and Installation
 
