@@ -38,14 +38,15 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: AWS_REGION
-              value: {{ .Values.config.AWS_REGION }}
+              value: {{ .Values.config.AWS_REGION | quote }}
             - name: INFRA_ASSESSMENT_ENABLE
-              value:  {{ .Values.config.INFRA_ASSESSMENT_ENABLE }}
+              value: {{ .Values.config.INFRA_ASSESSMENT_ENABLE | quote }}
             - name: CONFIG_AUDIT_ENABLE
-              value: {{ .Values.config.CONFIG_AUDIT_ENABLE }}
+              value: {{ .Values.config.CONFIG_AUDIT_ENABLE | quote }}
             - name: CLUSTER_COMPLIANCE_ENABLE
-              value: {{ .Values.config.CLUSTER_COMPLIANCE_ENABLE }}
+              value: {{ .Values.config.CLUSTER_COMPLIANCE_ENABLE | quote }}
             - name: VULNERABILITY_ENABLE
+              value: {{ .Values.config.VULNERABILITY_ENABLE | quote }}
               value: {{ .Values.config.VULNERABILITY_ENABLE }}
             {{ if .Values.extraenvs }}
               {{- toYaml .Values.extraenvs | nindent 12 }}

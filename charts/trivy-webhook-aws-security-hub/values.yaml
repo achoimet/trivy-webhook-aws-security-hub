@@ -35,10 +35,10 @@ fullnameOverride: ""
 ## @description config.VULNERABILITY_ENABLE: Enable vulnerability assessment.
 config:
   AWS_REGION: eu-central-1
-  INFRA_ASSESSMENT_ENABLE: "false"
-  CONFIG_AUDIT_ENABLE: "false"
-  CLUSTER_COMPLIANCE_ENABLE: "false"
-  VULNERABILITY_ENABLE: "true"
+  INFRA_ASSESSMENT_ENABLE: false
+  CONFIG_AUDIT_ENABLE: false
+  CLUSTER_COMPLIANCE_ENABLE: false
+  VULNERABILITY_ENABLE: true
 
 ## @param extraenvs [array] Extra environment variables to set for the trivy-webhook container.
 ## @description Extra environment variables to set for the trivy-webhook container.
