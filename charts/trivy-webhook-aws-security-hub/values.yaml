@@ -1,13 +1,13 @@
 ## @section Common Parameters
 
-## @param replicaCount Number of secret-sync replicas
+## @param replicaCount Number of trivy-webhook replicas
 ## @openapi3type integer
-## @description Specifies the number of replicas to run the secret-sync pods.
+## @description Specifies the number of replicas to run the trivy-webhook pods.
 replicaCount: 1
 
-## @param image.repository The repository to use for the secret-sync image.
-## @param image.pullPolicy The pull policy to use for the secret-sync image.
-## @param image.tag The secret-sync image tag. Defaults to the chart's AppVersion.
+## @param image.repository The repository to use for the trivy-webhook image.
+## @param image.pullPolicy The pull policy to use for the trivy-webhook image.
+## @param image.tag The trivy-webhook image tag. Defaults to the chart's AppVersion.
 ## @description Configures the container image details including repository, tag, and pull policy.
 image:
   repository: ghcr.io/csepulveda/trivy-webhook-aws-security-hub
@@ -27,8 +27,22 @@ nameOverride: ""
 ## @description Override for the full name of the Helm release.
 fullnameOverride: ""
 
-env:
+## @param config [array] configuration for the trivy-webhook container.
+## @description config.AWS_REGION: AWS region to use.
+## @description config.INFRA_ASSESSMENT_ENABLE: Enable infrastructure assessment.
+## @description config.CONFIG_AUDIT_ENABLE: Enable configuration audit.
+## @description config.CLUSTER_COMPLIANCE_ENABLE: Enable cluster compliance.
+## @description config.VULNERABILITY_ENABLE: Enable vulnerability assessment.
+config:
   AWS_REGION: eu-central-1
+  INFRA_ASSESSMENT_ENABLE: "false"
+  CONFIG_AUDIT_ENABLE: "false"
+  CLUSTER_COMPLIANCE_ENABLE: "false"
+  VULNERABILITY_ENABLE: "true"
+
+## @param extraenvs [array] Extra environment variables to set for the trivy-webhook container.
+## @description Extra environment variables to set for the trivy-webhook container.
+extraenvs: []
 
 ## @param serviceAccount.annotations [object] Annotations for service account. Evaluated as a template. Only used if `create` is `true`.
 ## @param serviceAccount.create Specifies whether a ServiceAccount should be created.
@@ -41,20 +55,20 @@ serviceAccount:
   annotations: {}
   name: ""
 
-## @param podAnnotations [object] Add extra annotations to the secret-sync pod(s).
-## @description Add custom annotations to the pods running the secret-sync service.
+## @param podAnnotations [object] Add extra annotations to the trivy-webhook pod(s).
+## @description Add custom annotations to the pods running the trivy-webhook service.
 podAnnotations: {}
 
-## @param podLabels [object] Add custom labels to the secret-sync pod(s).
-## @description Add custom labels to the pods running the secret-sync service.
+## @param podLabels [object] Add custom labels to the trivy-webhook pod(s).
+## @description Add custom labels to the pods running the trivy-webhook service.
 podLabels: {}
 
-## @param podSecurityContext [object] Add extra podSecurityContext to the secret-sync pod(s).
+## @param podSecurityContext [object] Add extra podSecurityContext to the trivy-webhook pod(s).
 ## @description Configure the security context for the pod, such as file system group settings.
 podSecurityContext: {}
   # fsGroup: 2000
 
-## @param securityContext [object] Add extra securityContext to the secret-sync pod(s).
+## @param securityContext [object] Add extra securityContext to the trivy-webhook pod(s).
 ## @description Configure the security context for the containers, including user permissions and security capabilities.
 securityContext: {}
   # capabilities:
@@ -64,16 +78,16 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
-## @param service.type Service type to expose the secret-sync.
-## @param service.port Port number to expose the secret-sync service.
-## @description Configuration settings for the service exposed by secret-sync.
+## @param service.type Service type to expose the trivy-webhook.
+## @param service.port Port number to expose the trivy-webhook service.
+## @description Configuration settings for the service exposed by trivy-webhook.
 service:
   type: ClusterIP
   port: 80
 
-## @param resources.limits [object] The resources limits for the secret-sync container.
-## @param resources.requests [object] The requested resources for the secret-sync container.
-## @description Define resource requests and limits for CPU and memory usage by the secret-sync container.
+## @param resources.limits [object] The resources limits for the trivy-webhook container.
+## @param resources.requests [object] The requested resources for the trivy-webhook container.
+## @description Define resource requests and limits for CPU and memory usage by the trivy-webhook container.
 resources:
   ## Example:
   ## limits:
@@ -114,7 +128,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
-## @param volumes [array] Additional volumes to be mounted on the secret-sync pods.
+## @param volumes [array] Additional volumes to be mounted on the trivy-webhook pods.
 ## @description Additional volumes that can be mounted on the pods.
 volumes: []
 # - name: foo
@@ -122,8 +136,8 @@ volumes: []
 #     secretName: mysecret
 #     optional: false
 
-## @param volumeMounts [array] Additional volume mounts for the secret-sync containers.
-## @description Additional volume mounts for the secret-sync containers.
+## @param volumeMounts [array] Additional volume mounts for the trivy-webhook containers.
+## @description Additional volume mounts for the trivy-webhook containers.
 volumeMounts: []
 # - name: foo
 #   mountPath: "/etc/foo"

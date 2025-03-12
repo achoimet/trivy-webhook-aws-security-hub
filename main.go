@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"k8s.io/utils/env"
 	"log"
 	"net/http"
-	"strconv"
+	"os"
 	"time"
 
 	"github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
@@ -26,100 +25,115 @@ type webhook struct {
 	APIVersion string `json:"apiVersion"`
 }
 
+// Config holds feature flags
+type Config struct {
+	InfraAssessmentEnable   bool
+	ConfigAuditEnable       bool
+	ClusterComplianceEnable bool
+	VulnerabilityEnable     bool
+}
+
+func LoadConfig() Config {
+	return Config{
+		InfraAssessmentEnable:   tools.ParseEnvBool("INFRA_ASSESSMENT_ENABLE", true),
+		ConfigAuditEnable:       tools.ParseEnvBool("CONFIG_AUDIT_ENABLE", true),
+		ClusterComplianceEnable: tools.ParseEnvBool("CLUSTER_COMPLIANCE_ENABLE", true),
+		VulnerabilityEnable:     tools.ParseEnvBool("VULNERABILITY_ENABLE", true),
+	}
+}
+
+func PrintConfig(cfg Config) {
+	log.Printf("Loaded Configuration: %+v", cfg)
+}
+
 // ProcessTrivyWebhook processes incoming vulnerability reports
-func ProcessTrivyWebhook(w http.ResponseWriter, r *http.Request) {
-	var enableConfigAudit bool
-	var enableInfraAssessment bool
-	var enableClusterCompliance bool
-	var enableVulnerability bool
-	var report webhook
+func ProcessTrivyWebhook(cfg Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var report webhook
 
-	// Read request body
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusBadRequest)
-		log.Printf("Error reading request body: %v", err)
-		return
-	}
-
-	// Validate request body is not empty
-	if len(body) == 0 {
-		http.Error(w, "Empty request body", http.StatusBadRequest)
-		log.Printf("Empty request body")
-		return
-	}
-
-	// Decode JSON
-	err = json.Unmarshal(body, &report)
-	if err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		log.Printf("Error decoding JSON: %v", err)
-		return
-	}
-
-	var findings []types.AwsSecurityFinding
-	switch report.Kind {
-	case "ConfigAuditReport":
-		enableConfigAudit, err = strconv.ParseBool(env.GetString("CONFIG_AUDIT_ENABLE", "false"))
-		if enableConfigAudit {
-			findings, err = getConfigAuditReportFindings(body)
-			if err != nil {
-				http.Error(w, "Error processing report", http.StatusInternalServerError)
-				log.Printf("Error processing report: %v", err)
-				return
-			}
+		// Read request body
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusBadRequest)
+			log.Printf("Error reading request body: %v", err)
+			return
 		}
-	case "InfraAssessmentReport":
-		enableInfraAssessment, err = strconv.ParseBool(env.GetString("INFRA_ASSESSMENT_ENABLE", "false"))
-		if enableInfraAssessment {
-			findings, err = getInfraAssessmentReport(body)
-			if err != nil {
-				http.Error(w, "Error processing report", http.StatusInternalServerError)
-				log.Printf("Error processing report: %v", err)
-				return
-			}
-		}
-	case "ClusterComplianceReport":
-		enableClusterCompliance, err = strconv.ParseBool(env.GetString("CLUSTER_COMPLIANCE_ENABLE", "false"))
-		if enableClusterCompliance {
-			findings, err = getClusterComplianceReport(body)
-			if err != nil {
-				http.Error(w, "Error processing report", http.StatusInternalServerError)
-				log.Printf("Error processing report: %v", err)
-				return
-			}
-		}
-	case "VulnerabilityReport":
-		enableVulnerability, err = strconv.ParseBool(env.GetString("VULNERABILITY_ENABLE", "true"))
-		if enableVulnerability {
-			findings, err = getVulnerabilityReportFindings(body)
-			if err != nil {
-				http.Error(w, "Error processing report", http.StatusInternalServerError)
-				log.Printf("Error processing report: %v", err)
-				return
-			}
-		}
-	default: // Unknown report type
-		http.Error(w, "unknown report type", http.StatusBadRequest)
-		log.Printf("unknown report type: %s", report.Kind)
-		return
-	}
 
-	//send findings to security hub
-	err = importFindingsToSecurityHub(findings)
-	if err != nil {
-		http.Error(w, "Error importing findings to Security Hub", http.StatusInternalServerError)
-		log.Printf("Error importing findings to Security Hub: %v", err)
-		return
-	}
+		// Validate request body is not empty
+		if len(body) == 0 {
+			http.Error(w, "Empty request body", http.StatusBadRequest)
+			log.Printf("Empty request body")
+			return
+		}
 
-	// Return a success response
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte("Vulnerabilities processed and imported to Security Hub"))
-	if err != nil {
-		log.Printf("Error writing response: %v", err)
-	}
+		// Decode JSON
+		err = json.Unmarshal(body, &report)
+		if err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			log.Printf("Error decoding JSON: %v", err)
+			return
+		}
 
+		var findings []types.AwsSecurityFinding
+		switch report.Kind {
+		case "ConfigAuditReport":
+			if cfg.ConfigAuditEnable {
+				findings, err = getConfigAuditReportFindings(body)
+				if err != nil {
+					http.Error(w, "Error processing report", http.StatusInternalServerError)
+					log.Printf("Error processing report: %v", err)
+					return
+				}
+			}
+		case "InfraAssessmentReport":
+			if cfg.InfraAssessmentEnable {
+				findings, err = getInfraAssessmentReport(body)
+				if err != nil {
+					http.Error(w, "Error processing report", http.StatusInternalServerError)
+					log.Printf("Error processing report: %v", err)
+					return
+				}
+			}
+		case "ClusterComplianceReport":
+			if cfg.ClusterComplianceEnable {
+				findings, err = getClusterComplianceReport(body)
+				if err != nil {
+					http.Error(w, "Error processing report", http.StatusInternalServerError)
+					log.Printf("Error processing report: %v", err)
+					return
+				}
+			}
+		case "VulnerabilityReport":
+			if cfg.VulnerabilityEnable {
+				findings, err = getVulnerabilityReportFindings(body)
+				if err != nil {
+					http.Error(w, "Error processing report", http.StatusInternalServerError)
+					log.Printf("Error processing report: %v", err)
+					return
+				}
+			}
+		default: // Unknown report type
+			http.Error(w, "unknown report type", http.StatusBadRequest)
+			log.Printf("unknown report type: %s", report.Kind)
+			return
+		}
+
+		//send findings to security hub
+		err = importFindingsToSecurityHub(findings)
+		if err != nil {
+			http.Error(w, "Error importing findings to Security Hub", http.StatusInternalServerError)
+			log.Printf("Error importing findings to Security Hub: %v", err)
+			return
+		}
+
+		// Return a success response
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte("Vulnerabilities processed and imported to Security Hub"))
+		if err != nil {
+			log.Printf("Error writing response: %v", err)
+		}
+
+	}
 }
 
 func getConfigAuditReportFindings(body []byte) ([]types.AwsSecurityFinding, error) {
@@ -393,6 +407,13 @@ func importFindingsToSecurityHub(findings []types.AwsSecurityFinding) error {
 }
 
 func main() {
+	//overwrite trivy library logging configurations.
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.LstdFlags)
+
+	cfg := LoadConfig()
+	PrintConfig(cfg)
+
 	r := mux.NewRouter()
 
 	// Define route
@@ -405,10 +426,10 @@ func main() {
 
 	}).Methods("GET")
 
-	r.HandleFunc("/trivy-webhook", ProcessTrivyWebhook).Methods("POST")
+	r.HandleFunc("/trivy-webhook", ProcessTrivyWebhook(cfg)).Methods("POST")
 
 	// Start the server
 	port := ":8080"
-	fmt.Println("Starting server on port", port)
+	log.Printf("Starting server on port %s", port)
 	log.Fatal(http.ListenAndServe(port, r))
 }

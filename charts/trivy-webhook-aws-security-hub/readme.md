@@ -35,44 +35,110 @@ helm install trivy-webhook trivy-webhook-aws-security-hub/trivy-webhook-aws-secu
 - The `serviceAccount.annotations` sets the necessary IAM role for the service to access AWS resources securely.
 - By specifying `eks.amazonaws.com/role-arn`, the Trivy webhook can assume the specified IAM role and import vulnerability findings into Security Hub.
 
-## Parameters
+## ⚙️ Configuration
+
+All configuration is done via `values.yaml` or `--set` in the Helm CLI.
 
 ### Common Parameters
 
-| Name                                         | Description                                                                                                         | Value                                               |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `replicaCount`                               | Number of secret-sync replicas                                                                                      | `1`                                                 |
-| `image.repository`                           | The repository to use for the secret-sync image.                                                                    | `ghcr.io/csepulveda/trivy-webhook-aws-security-hub` |
-| `image.pullPolicy`                           | The pull policy to use for the secret-sync image.                                                                   | `IfNotPresent`                                      |
-| `image.tag`                                  | The secret-sync image tag. Defaults to the chart's AppVersion.                                                      | `""`                                                |
-| `imagePullSecrets`                           | A list of image pull secrets for the container image.                                                               | `[]`                                                |
-| `nameOverride`                               | Override for the name of the Helm release.                                                                          | `""`                                                |
-| `fullnameOverride`                           | Override for the full name of the Helm release.                                                                     | `""`                                                |
-| `serviceAccount.annotations`                 | Annotations for service account. Evaluated as a template. Only used if `create` is `true`.                          | `{}`                                                |
-| `serviceAccount.create`                      | Specifies whether a ServiceAccount should be created.                                                               | `true`                                              |
-| `serviceAccount.automount`                   | Specifies whether the ServiceAccount should auto-mount API credentials.                                             | `true`                                              |
-| `serviceAccount.name`                        | Name of the service account to use. If not set and create is true, a name is generated using the fullname template. | `""`                                                |
-| `podAnnotations`                             | Add extra annotations to the secret-sync pod(s).                                                                    | `{}`                                                |
-| `podLabels`                                  | Add custom labels to the secret-sync pod(s).                                                                        | `{}`                                                |
-| `podSecurityContext`                         | Add extra podSecurityContext to the secret-sync pod(s).                                                             | `{}`                                                |
-| `securityContext`                            | Add extra securityContext to the secret-sync pod(s).                                                                | `{}`                                                |
-| `service.type`                               | Service type to expose the secret-sync.                                                                             | `ClusterIP`                                         |
-| `service.port`                               | Port number to expose the secret-sync service.                                                                      | `80`                                                |
-| `resources.limits`                           | The resources limits for the secret-sync container.                                                                 | `{}`                                                |
-| `resources.requests`                         | The requested resources for the secret-sync container.                                                              | `{}`                                                |
-| `livenessProbe.httpGet.path`                 | Path for the liveness probe HTTP GET request.                                                                       | `/healthz`                                          |
-| `livenessProbe.httpGet.port`                 | Port for the liveness probe HTTP GET request.                                                                       | `http`                                              |
-| `readinessProbe.httpGet.path`                | Path for the readiness probe HTTP GET request.                                                                      | `/healthz`                                          |
-| `readinessProbe.httpGet.port`                | Port for the readiness probe HTTP GET request.                                                                      | `http`                                              |
-| `autoscaling.enabled`                        | Enable or disable autoscaling.                                                                                      | `false`                                             |
-| `autoscaling.minReplicas`                    | Minimum number of replicas for autoscaling.                                                                         | `1`                                                 |
-| `autoscaling.maxReplicas`                    | Maximum number of replicas for autoscaling.                                                                         | `2`                                                 |
-| `autoscaling.targetCPUUtilizationPercentage` | Target CPU utilization percentage for autoscaling.                                                                  | `80`                                                |
-| `volumes`                                    | Additional volumes to be mounted on the secret-sync pods.                                                           | `[]`                                                |
-| `volumeMounts`                               | Additional volume mounts for the secret-sync containers.                                                            | `[]`                                                |
-| `nodeSelector`                               | Node selector for pod placement.                                                                                    | `{}`                                                |
-| `tolerations`                                | Tolerations for pods.                                                                                               | `[]`                                                |
-| `affinity`                                   | Affinity rules for pod placement.                                                                                   | `{}`                                                |
+| Name                      | Description                                                   | Type      | Default   |
+|--------------------------|---------------------------------------------------------------|-----------|-----------|
+| `replicaCount`            | Number of trivy-webhook replicas                             | `integer` | `1`       |
+| `image.repository`        | Docker image repository                                      | `string`  | `ghcr.io/csepulveda/trivy-webhook-aws-security-hub` |
+| `image.pullPolicy`        | Image pull policy                                            | `string`  | `IfNotPresent` |
+| `image.tag`               | Image tag (defaults to chart's AppVersion)                   | `string`  | `""`      |
+| `imagePullSecrets`        | List of image pull secrets                                   | `list`    | `[]`      |
+| `nameOverride`            | Override for the release name                                | `string`  | `""`      |
+| `fullnameOverride`        | Override for full release name                               | `string`  | `""`      |
+
+---
+
+### App Configuration (`config` block)
+
+| Name                                | Description                                        | Default          |
+|-------------------------------------|--------------------------------------------------|------------------|
+| `config.AWS_REGION`                  | AWS region for Security Hub                      | `eu-central-1`   |
+| `config.INFRA_ASSESSMENT_ENABLE`     | Enable Infra Assessment report processing        | `"false"`         |
+| `config.CONFIG_AUDIT_ENABLE`         | Enable Config Audit report processing            | `"false"`         |
+| `config.CLUSTER_COMPLIANCE_ENABLE`  | Enable Cluster Compliance report processing     | `"false"`         |
+| `config.VULNERABILITY_ENABLE`        | Enable Vulnerability report processing           | `"true"`         |
+
+> These environment variables control what types of Trivy reports are processed and sent to AWS Security Hub.
+
+---
+
+### Extra Environment Variables
+
+| Name             | Description                                | Type  | Default |
+|------------------|--------------------------------------------|-------|---------|
+| `extraenvs`      | List of additional environment variables   | `list`| `[]`    |
+
+---
+
+### Kubernetes & Pod Settings
+
+| Name                      | Description                                                   | Type     | Default   |
+|--------------------------|---------------------------------------------------------------|----------|-----------|
+| `serviceAccount.create`   | Whether to create a ServiceAccount                           | `bool`   | `true`    |
+| `serviceAccount.automount`| Auto-mount API credentials                                    | `bool`   | `true`    |
+| `serviceAccount.annotations`| Annotations for the ServiceAccount                         | `object` | `{}`      |
+| `serviceAccount.name`     | Name of the ServiceAccount (auto-generated if empty)         | `string` | `""`      |
+| `podAnnotations`          | Pod annotations                                               | `object` | `{}`      |
+| `podLabels`               | Pod labels                                                    | `object` | `{}`      |
+| `podSecurityContext`      | Security context for pod                                      | `object` | `{}`      |
+| `securityContext`         | Security context for container                               | `object` | `{}`      |
+| `nodeSelector`            | Node selector for pod scheduling                             | `object` | `{}`      |
+| `tolerations`             | Tolerations for pod scheduling                               | `list`   | `[]`      |
+| `affinity`                | Affinity rules for pod scheduling                            | `object` | `{}`      |
+
+---
+
+### Service
+
+| Name             | Description                                | Type   | Default   |
+|------------------|--------------------------------------------|--------|-----------|
+| `service.type`   | Kubernetes service type                    | `string`| `ClusterIP`|
+| `service.port`   | Service port                               | `int`  | `80`      |
+
+---
+
+### Resources
+
+| Name                   | Description                          | Type   | Default  |
+|-----------------------|--------------------------------------|--------|----------|
+| `resources.limits`     | Resource limits                      | `object`| `{}`    |
+| `resources.requests`   | Resource requests                    | `object`| `{}`    |
+
+---
+
+### Probes
+
+| Name                                 | Description                      | Type   | Default   |
+|--------------------------------------|----------------------------------|--------|-----------|
+| `livenessProbe.httpGet.path`          | Path for liveness probe          | `string`| `/healthz`|
+| `livenessProbe.httpGet.port`          | Port for liveness probe          | `string`| `http`    |
+| `readinessProbe.httpGet.path`         | Path for readiness probe         | `string`| `/healthz`|
+| `readinessProbe.httpGet.port`         | Port for readiness probe         | `string`| `http`    |
+
+---
+
+### Autoscaling
+
+| Name                                         | Description                          | Type    | Default |
+|----------------------------------------------|--------------------------------------|---------|---------|
+| `autoscaling.enabled`                        | Enable autoscaling                   | `bool`  | `false` |
+| `autoscaling.minReplicas`                    | Minimum replicas                     | `int`   | `1`     |
+| `autoscaling.maxReplicas`                    | Maximum replicas                     | `int`   | `2`     |
+| `autoscaling.targetCPUUtilizationPercentage` | CPU target percentage                | `int`   | `80`    |
+
+---
+
+### Volumes and Mounts
+
+| Name             | Description                                | Type  | Default |
+|------------------|--------------------------------------------|-------|---------|
+| `volumes`        | Additional volumes to mount                | `list`| `[]`    |
+| `volumeMounts`   | Additional volume mounts for containers    | `list`| `[]`    |
 
 ## Setting Up Trivy Operator
 
