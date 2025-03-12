@@ -47,7 +47,6 @@ spec:
               value: {{ .Values.config.CLUSTER_COMPLIANCE_ENABLE | quote }}
             - name: VULNERABILITY_ENABLE
               value: {{ .Values.config.VULNERABILITY_ENABLE | quote }}
-              value: {{ .Values.config.VULNERABILITY_ENABLE }}
             {{ if .Values.extraenvs }}
               {{- toYaml .Values.extraenvs | nindent 12 }}
             {{- end }}
