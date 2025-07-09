@@ -1,6 +1,6 @@
 module github.com/csepulveda/trivy-webhook-aws-security-hub
 
-go 1.24
+go 1.24.4
 
 toolchain go1.24.5
 
