@@ -1,8 +1,6 @@
 module github.com/csepulveda/trivy-webhook-aws-security-hub
 
-go 1.24.4
-
-toolchain go1.24.5
+go 1.24.7
 
 require (
 	github.com/aquasecurity/trivy-operator v0.27.2
