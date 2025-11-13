@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine3.22 as builder
+FROM golang:1.25-alpine3.22 as builder
 WORKDIR /app
 COPY . .
 RUN 
@@ -15,7 +15,7 @@ USER app
 ENTRYPOINT ["./main"]
 
 
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.22 as builder
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine3.22 as builder
 ARG TARGETOS TARGETARCH TARGETVARIANT
 WORKDIR /app
 COPY . .
